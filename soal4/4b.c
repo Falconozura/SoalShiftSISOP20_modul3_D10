@@ -14,22 +14,23 @@
 typedef unsigned long long int ull;
 
 int (*matrixC)[WIDTH1];
-ull reslt[WIDTH][WIDTH1];
+int reslt[WIDTH][WIDTH1];
 
 void* count(void *arg) {
     int temp;
-    ull ops = 1;
-    for (int i = 0; i < WIDTH; i++) { 
-        for (int j = 0; j < WIDTH1; j++) { 
+    int ops = 0;
+    int i,j,k;
+    for (i = 0; i < WIDTH; i++) { 
+        for (j = 0; j < WIDTH1; j++) { 
             temp = matrixC[i][j];
             // printf("%d||", temp);
-            for(int k = 1; k <= temp; k++) {
-                ops*=k;
-                printf("%lld||", ops);
+            for(k = temp; k > 0; k--) {
+                ops+=k;
+                // printf("--%d--", ops);
             }
             reslt[i][j] = ops;
-            //printf("%lld||", reslt[i][j]);
-            ops = 1;
+            // printf("--%d--", reslt[i][j]);
+            ops = 0;
         }
     }
 }
@@ -51,10 +52,10 @@ int main()
     pthread_create(&thread, NULL, count, NULL);
     pthread_join(thread, NULL);
 
-    printf("Hasil faktorial matriks 4a.c:\n");
+    printf("Hasil operasi pernjumlahan dari matriks 4a.c:\n");
     for (int i = 0; i < WIDTH; i++) { 
         for (int j = 0; j < WIDTH1; j++) { 
-            printf("%llu ", reslt[i][j]);
+            printf("%d ", reslt[i][j]);
         }
         printf("\n");
     }
