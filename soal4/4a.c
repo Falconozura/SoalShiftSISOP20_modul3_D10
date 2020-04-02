@@ -34,13 +34,13 @@ int main(){
     matrixC = shmat(shmid, NULL, 0);
     for (int i = 0; i < WIDTH; i++) { 
         for (int j = 0; j < LENGTH; j++) { 
-            matrixA[i][j] = rand() % 20;
+            matrixA[i][j] = (j+1);
         } 
     }
 
     for (int i = 0; i < LENGTH; i++) { 
         for (int j = 0; j < WIDTH1; j++) { 
-            matrixB[i][j] = rand() % 20;
+            matrixB[i][j] = (j+1);
         } 
     } 
 
