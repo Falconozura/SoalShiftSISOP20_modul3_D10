@@ -1,6 +1,410 @@
 # SoalShiftSISOP20_modul3_D10
+
+Clever Dicki Marpaung (05111840000116) 
+
+Nodas Uziel Putra Serpara (05111840007007)
+
 ## Soal 1 (Belum Selesai)
+
 ## Soal 2
+Pada soal nomor 2 ini, diminta untuk membuat game text console. Pada soal ini, terdapat
+dua sisi:
+1. Server Side
+2. Client Side
+Pada soal ini, kami belum dapat menyelesaikan soal sepenuhnya, dimana pada bagian 
+`find match` kami belum dapat menyelesaikannya. Dalam pengerjaan soal ini, kami menggunakan
+socket dan threading.
+
+### Server Side
+Source Code:
+```c
+#include <stdio.h>
+#include <sys/socket.h>
+#include <stdlib.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <pthread.h>
+#define PORT 8080
+
+struct player {
+  int jlh;
+  struct sockaddr_in playerAddress;
+  int addrlen;
+};
+
+struct player Player[1024];
+int playerCount = 0;
+pthread_t thread[1024];
+
+void *process(void *PlayerUp) {
+  struct player* playerUp = (struct player*) PlayerUp;
+  int new_socket = playerUp->jlh;
+  
+  while(1) {
+    char account[1024], checking[1024], buffer[1024], cmd[1024];
+    int read = recv(new_socket, account, 1024, 0);
+    account[read] = '\0';
+    char cek = 0;
+    memset(buffer, 0, sizeof buffer);
+    if (strcmp(account, "Login") == 0 || strcmp(account, "login") == 0) {
+      FILE *fp = fopen("akun.txt", "r");
+      if(!fp) {
+        FILE *file2 = fopen("akun.txt", "w");
+        fclose(file2);
+        FILE *file = fopen("akun.txt", "r");
+      }
+      read = recv(new_socket, account, 1024, 0);
+      while (fscanf(fp, "%s", checking) != EOF) {
+        if(!strcmp(checking, account)) {
+          cek = 1;
+          break;
+        }
+      }
+      if(cek) {
+        printf("Auth success\n");
+        strcpy(cmd, "success");
+        send(new_socket, cmd, 1024, 0);
+      } else {
+          printf("Auth failed\n");
+          strcpy(cmd, "failed");
+          send(new_socket, cmd, 1024, 0);
+      }
+      fclose(fp);
+    } 
+    else if (strcmp(account, "Register") == 0 || strcmp(account, "register") == 0) {
+      FILE *fp = fopen("akun.txt", "a");
+      read = recv(new_socket, account, 1024, 0);
+      account[read] = '\0';
+      fprintf(fp, "%s", account);
+      fprintf(fp, "\n");
+      strcpy(cmd,"success");
+      fclose(fp);
+      FILE *fp1 = fopen("akun.txt", "r");
+      while (fscanf(fp1, "%s", checking) != EOF) {
+        printf("%s\n", checking);
+      }
+      fclose(fp1);
+      send(new_socket, cmd, 1024, 0);
+    }
+  }
+}
+
+int main(int argc, char const *argv[]){
+  int server_fd, new_socket, valread;
+  struct sockaddr_in address;
+  int opt = 1, stock=1;
+
+  if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) <= 0) {
+    perror("Could not create socket\n");
+    exit(EXIT_FAILURE);
+  }
+
+  address.sin_family = AF_INET;
+  address.sin_addr.s_addr = INADDR_ANY;
+  address.sin_port = htons( PORT );
+  
+  if (bind(server_fd, (struct sockaddr *)&address, sizeof(address))<0) {
+    perror("bind failed\n");
+    exit(EXIT_FAILURE);
+  }
+    
+  if (listen(server_fd, 3) < 0) {
+    perror("listen failed\n");
+    exit(EXIT_FAILURE);
+  }
+
+  printf("Waiting for making connection...\n"); 
+  while (1)
+  {
+    Player[playerCount].jlh = accept(server_fd, (struct sockaddr *)&Player[playerCount].playerAddress, &Player[playerCount].addrlen);
+    pthread_create(&thread[playerCount], NULL, process, &Player[playerCount]);
+    playerCount++;
+  }
+  for(int i = 0; i < playerCount; i++)
+    pthread_join(thread[i], NULL);
+  return 0;
+}
+
+```
+
+Dikarenakan fitur `find match` belum dapat kami selesaikan, maka di bagian server
+ini terdapat 2 proses yang dapat dijalankan. Yaitu `Login` dan `Register`. Server
+akan menjalankan perintah sesuai input yang diberikan oleh user melalui Client Side.
+
+```c
+if (strcmp(account, "Login") == 0 || strcmp(account, "login") == 0) {
+      FILE *fp = fopen("akun.txt", "r");
+      if(!fp) {
+        FILE *file2 = fopen("akun.txt", "w");
+        fclose(file2);
+        FILE *file = fopen("akun.txt", "r");
+      }
+      read = recv(new_socket, account, 1024, 0);
+      while (fscanf(fp, "%s", checking) != EOF) {
+        if(!strcmp(checking, account)) {
+          cek = 1;
+          break;
+        }
+      }
+      if(cek) {
+        printf("Auth success\n");
+        strcpy(cmd, "success");
+        send(new_socket, cmd, 1024, 0);
+      } else {
+          printf("Auth failed\n");
+          strcpy(cmd, "failed");
+          send(new_socket, cmd, 1024, 0);
+      }
+      fclose(fp);
+    } 
+```
+
+Bagian diatas akan dijalankan ketika Client Side memberikan inputan `Login`.
+Akan dilakukan operasi file untuk nantinya digunakan dalam pengecekan akun
+yang sudah terdaftar pada game ini, dimana semua data akun tersimpan di file
+`akun.txt`. Client side akan mengirimkan `Username` dan `Password`, kemudian
+server akan mengecek apakah inputan `Username` dan `Password` sesuai dengan
+akun yang teregistrasi di file `akun.txt`. Pengecekan dilakukan secara iteratif
+sampai ditemukannya kecocokan dengan inputan ataupun dicek sampai akhir file jika
+tidak ditemukan kecocokan. Jika ditemukan kecocokan, `cek` akan bernilai `1` dan
+pengecekan berhenti dilakukan. Kemudian jika `cek` bernilai `1`, maka login
+berhasil dan pada Server Side akan mengeluarkan output `Auth success`, serta
+mengirimkan string ke Client Side untuk mendandakan bahwa akun tersebut benar.
+Jika `cek` tidak bernilai `1`, maka Server Side akan mengeluarkan output 
+`Auth failed` dan mengirimkan string juga ke Client Side untuk menandakan bahwa
+akun tidak benar.
+
+```c
+else if (strcmp(account, "Register") == 0 || strcmp(account, "register") == 0) {
+      FILE *fp = fopen("akun.txt", "a");
+      read = recv(new_socket, account, 1024, 0);
+      account[read] = '\0';
+      fprintf(fp, "%s", account);
+      fprintf(fp, "\n");
+      strcpy(cmd,"success");
+      fclose(fp);
+      FILE *fp1 = fopen("akun.txt", "r");
+      while (fscanf(fp1, "%s", checking) != EOF) {
+        printf("%s\n", checking);
+      }
+      fclose(fp1);
+      send(new_socket, cmd, 1024, 0);
+    }
+```
+
+Bagian diatas akan dijalankan ketika Client Side mengirimkan inputan
+`Register`. Program akan melakukan operasi file untuk nantinya write file
+untuk akun yang akan diregistrasi. Setelah akun disimpan di file `akun.txt`,
+maka selanjutnya Server Side akan mengeluarkan output berupa semua akun
+yang tersimpan di `akun.txt`. Pengecekan `EOF` berarti dilakukan sampai
+akhir dari file tersebut. Kemudian Server Side akan memberikan tanda ke
+Client Side bahwa proses registrasi telah berhasil.
+
+### Client Side
+Source Code:
+```c
+#include <stdio.h>
+#include <sys/socket.h>
+#include <stdlib.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <stdbool.h>
+#include <pthread.h>
+#include <wait.h>
+#define PORT 8080
+
+int main(int argc, char const *argv[]){
+    
+    struct sockaddr_in address;
+    int sock = 0, valread;
+    struct sockaddr_in serv_addr;
+    char buffer[1024], cmd[1024], username[1024], password[1024], account[1024];
+    int screen = 1;
+    int status;
+    pid_t child_id;
+
+    while(1) {
+    //create socket
+        if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+            printf("\n Socket creation error \n");
+            return -1;
+        } 
+        memset(&serv_addr, '0', sizeof(serv_addr));
+
+        serv_addr.sin_family = AF_INET;
+        serv_addr.sin_port = htons(PORT);
+    
+        // Convert IPv4 and IPv6 addresses from text to binary form 
+        if(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)<=0) {
+            printf("\nInvalid address/ Address not supported \n");
+            return -1;
+        }
+    
+        //connect to server
+        if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+            printf("\nConnection Failed \n");
+            return -1;
+        }
+
+        if(screen == 1) {
+            memset(buffer, 0, sizeof buffer);
+            child_id = fork();
+            if(child_id == 0) {
+                char *argv[] = {"clear", NULL};
+                execv("/usr/bin/clear", argv);
+            } else
+                while ((wait(&status)) > 0);
+            printf("1. Login\n2. Register\nChoices: ");
+            scanf("%s", cmd);
+            send(sock, cmd, 1024, 0);
+            if(strcmp(cmd, "Login") == 0 || strcmp(cmd, "login") == 0) {
+                printf("Username: ");
+                scanf("%s", username);
+                printf("Password: ");
+                scanf("%s", password);
+                sprintf(account, "%s|%s", username, password);
+                send(sock, account, 1024, 0);
+                recv(sock, buffer, 1025, 0);
+                child_id = fork();
+                if(child_id == 0) {
+                    char *argv[] = {"clear", NULL};
+                    execv("/usr/bin/clear", argv);
+                } else
+                    while ((wait(&status)) > 0);
+                if(strcmp(buffer, "success") == 0) {
+                    screen = 2;
+                    printf("login success\n");
+                } else {
+                    screen = 1;
+                    printf("login failed\n");
+                }
+                continue;
+            }
+            else if(strcmp(cmd, "Register") == 0 || strcmp(cmd, "register") == 0) {
+                printf("Username: ");
+                scanf("%s", username);
+                printf("Password: ");
+                scanf("%s", password);
+                sprintf(account, "%s|%s", username, password);
+                send(sock, account, 1024, 0);
+                recv(sock, buffer, 1024, 0);
+                child_id = fork();
+                if(strcmp(buffer, "success") == 0) {
+                    screen = 1;
+                    printf("register success\n");
+                } else {
+                    screen = 1;
+                    printf("register failed\n");
+                }
+                continue;
+            }
+
+        }
+        if (screen == 2) {
+            printf("1. Find Match\n2. Logout\nChoices: ");
+            scanf("%s", cmd);
+            if (strcmp(cmd, "Logout") == 0 || strcmp(cmd, "logout") == 0) {
+                screen = 1;
+                continue;
+            }
+        }
+        
+    }
+    return 0;
+}
+```
+
+Pada Client Side, terdapat dua screen, yaitu screen pertama akan menampilkan opsi
+`Login` dan opsi `Registrasi`. Kemudian, setelah berhasil login user akan masuk
+ke screen kedua yang akan menampilkan opsi `Find Match` dan opsi `Logout`. Jika
+user memilih opsi `Logout`, maka akan kembali ke screen pertama.
+
+```c
+printf("1. Login\n2. Register\nChoices: ");
+scanf("%s", cmd);
+send(sock, cmd, 1024, 0);
+if(strcmp(cmd, "Login") == 0 || strcmp(cmd, "login") == 0) {
+    printf("Username: ");
+    scanf("%s", username);
+    printf("Password: ");
+    scanf("%s", password);
+    sprintf(account, "%s|%s", username, password);
+    send(sock, account, 1024, 0);
+    recv(sock, buffer, 1025, 0);
+    child_id = fork();
+    if(child_id == 0) {
+         char *argv[] = {"clear", NULL};
+         execv("/usr/bin/clear", argv);
+    } else
+         while ((wait(&status)) > 0);
+    if(strcmp(buffer, "success") == 0) {
+         screen = 2;
+         printf("login success\n");
+    } else {
+         screen = 1;
+         printf("login failed\n");
+    }
+    continue;
+}
+```
+
+Jika user menginputkan `Login`, maka Client Side akan menampilkan `Username`
+dan `Password` dimana user akan menginputkan data akun mereka yang nantinya
+data tersebut akan dikirim ke Server Side untuk di cek kebenarannya. Data
+tersebut disimpan di dalam variabel `account`. Screen akan di-clear dengan
+command `clear`. Client Side menerima pesan dari Server Side. Jika pesan dari
+server berisi `success`, maka proses login berhasil dan akan lanjut ke screen
+kedua serta akan mengeluarkan output `login success`. Jika tidak, akan kembali
+ke screen awal dan Client Side mengeluarkan ouput `login failed`.
+
+```c
+else if(strcmp(cmd, "Register") == 0 || strcmp(cmd, "register") == 0) {
+    printf("Username: ");
+    scanf("%s", username);
+    printf("Password: ");
+    scanf("%s", password);
+    sprintf(account, "%s|%s", username, password);
+    send(sock, account, 1024, 0);
+    recv(sock, buffer, 1024, 0);
+    child_id = fork();
+    if(strcmp(buffer, "success") == 0) {
+        screen = 1;
+        printf("register success\n");
+    } else {
+        screen = 1;
+        printf("register failed\n");
+    }
+    continue;
+}
+```
+
+Jika user menginputkan `Register`, sama seperti opsi `Login`, Client side akan
+menampilkan `Username` dan `Password` yang akan diinputkan user untuk registrasi
+akun baru. Data akan disimpan di variabel `account`. Client Side akan menerima
+pesan dari Server Side. Apabila pesan yang dikirim berisi `success` maka proses
+registrasi berhasil dan Client Side akan mengeluarkan output `register success`
+dan kembali ke screen awal. Jika tidak berhasil, Client Side akan mengeluarkan
+output `register failed` dan kembali ke screen awal.
+
+```c
+if (screen == 2) {
+    printf("1. Find Match\n2. Logout\nChoices: ");
+    scanf("%s", cmd);
+    if (strcmp(cmd, "Logout") == 0 || strcmp(cmd, "logout") == 0) {
+        screen = 1;
+        continue;
+    }
+}
+```
+Setelah berhasil login, maka user akan masuk ke screen kedua. Nantinya di screen
+kedua akan ditampilkan opsi `Find Match` dan opsi `Logout`. Ketika user menginputkan
+`Logout`, maka screen akan kembali ke screen pertama.
+
+
 ## Soal 3
 ![rsz_1screenshot_from_2020-04-10_21-22-26](https://user-images.githubusercontent.com/61287359/78998291-7e14c500-7b72-11ea-8028-acd88b873be8.png)
 
