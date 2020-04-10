@@ -5,19 +5,20 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <stdbool.h>
+#include <pthread.h>
+#include <wait.h>
 #define PORT 8080
 
 int main(int argc, char const *argv[]){
     
-    FILE *fp;
-    char username[100];
-    char password[100];
-    char c;
     struct sockaddr_in address;
     int sock = 0, valread;
     struct sockaddr_in serv_addr;
-    char buffer[100]={0};
-    char cmd[100]={0};
+    char buffer[1024], cmd[1024], username[1024], password[1024], account[1024];
+    int screen = 1;
+    int status;
+    pid_t child_id;
 
     while(1) {
     //create socket
@@ -40,40 +41,71 @@ int main(int argc, char const *argv[]){
         if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
             printf("\nConnection Failed \n");
             return -1;
-        } 
+        }
 
-        printf("1. Login\n2. Register\n");
-        gets(cmd);
-        send(sock, cmd, strlen(cmd), 0);
+        if(screen == 1) {
+            memset(buffer, 0, sizeof buffer);
+            child_id = fork();
+            if(child_id == 0) {
+                char *argv[] = {"clear", NULL};
+                execv("/usr/bin/clear", argv);
+            } else
+                while ((wait(&status)) > 0);
+            printf("1. Login\n2. Register\nChoices: ");
+            scanf("%s", cmd);
+            send(sock, cmd, 1024, 0);
+            if(strcmp(cmd, "Login") == 0 || strcmp(cmd, "login") == 0) {
+                printf("Username: ");
+                scanf("%s", username);
+                printf("Password: ");
+                scanf("%s", password);
+                sprintf(account, "%s|%s", username, password);
+                send(sock, account, 1024, 0);
+                recv(sock, buffer, 1025, 0);
+                child_id = fork();
+                if(child_id == 0) {
+                    char *argv[] = {"clear", NULL};
+                    execv("/usr/bin/clear", argv);
+                } else
+                    while ((wait(&status)) > 0);
+                if(strcmp(buffer, "success") == 0) {
+                    screen = 2;
+                    printf("login success\n");
+                } else {
+                    screen = 1;
+                    printf("login failed\n");
+                }
+                continue;
+            }
+            else if(strcmp(cmd, "Register") == 0 || strcmp(cmd, "register") == 0) {
+                printf("Username: ");
+                scanf("%s", username);
+                printf("Password: ");
+                scanf("%s", password);
+                sprintf(account, "%s|%s", username, password);
+                send(sock, account, 1024, 0);
+                recv(sock, buffer, 1024, 0);
+                child_id = fork();
+                if(strcmp(buffer, "success") == 0) {
+                    screen = 1;
+                    printf("register success\n");
+                } else {
+                    screen = 1;
+                    printf("register failed\n");
+                }
+                continue;
+            }
 
-        if(strcmp(cmd, "Login") == 0 || strcmp(cmd, "login") == 0) {
-            printf("Username: ");
-            scanf("%s",username);
-            printf("Password: ");
-            scanf("%s",password);
-            send(sock, username, strlen(username), 0);
-            send(sock, password, strlen(password), 0);
-            valread = read(sock, buffer, 100);
-            printf("%s\n", buffer);
-            memset(username, '\0', sizeof username);
-            memset(password, '\0', sizeof password);
         }
-        else if(strcmp(cmd, "Register") == 0 || strcmp(cmd, "register") == 0) {
-            printf("Username: ");
-            scanf("%s",username);
-            printf("Password: ");
-            scanf("%s",password);
-            send(sock, username, strlen(username), 0);
-            send(sock, password, strlen(password), 0);
-            valread = read(sock, buffer, 100);
-            printf("%s\n", buffer);
-            memset(username, '\0', sizeof username);
-            memset(password, '\0', sizeof password);
+        if (screen == 2) {
+            printf("1. Find Match\n2. Logout\nChoices: ");
+            scanf("%s", cmd);
+            if (strcmp(cmd, "Logout") == 0 || strcmp(cmd, "logout") == 0) {
+                screen = 1;
+                continue;
+            }
         }
-        else if(strcmp(cmd, "exit") == 0) {
-            return 0;
-        }
-        memset(cmd, '\0', sizeof cmd);
+        
     }
     return 0;
 }
