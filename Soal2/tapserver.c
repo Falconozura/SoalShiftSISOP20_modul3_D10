@@ -5,38 +5,79 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 #define PORT 8080
 
-struct user{
-  char username[100];
-  char password[100];
-}*pUser;
+struct player {
+  int jlh;
+  struct sockaddr_in playerAddress;
+  int addrlen;
+};
+
+struct player Player[1024];
+int playerCount = 0;
+pthread_t thread[1024];
+
+void *process(void *PlayerUp) {
+  struct player* playerUp = (struct player*) PlayerUp;
+  int new_socket = playerUp->jlh;
+  
+  while(1) {
+    char account[1024], secret[1024], buffer[1024], cmd[1024];
+    int read = recv(new_socket, account, 1024, 0);
+    account[read] = '\0';
+    char cek = 0;
+    memset(buffer, 0, sizeof buffer);
+    if (strcmp(account, "Login") == 0 || strcmp(account, "login") == 0) {
+      FILE *fp = fopen("akun.txt", "r");
+      if(!fp) {
+        FILE *file2 = fopen("akun.txt", "w");
+        fclose(file2);
+        FILE *file = fopen("akun.txt", "r");
+      }
+      read = recv(new_socket, account, 1024, 0);
+      while (fscanf(fp, "%s", secret) != EOF) {
+        if(!strcmp(secret, account)) {
+          cek = 1;
+          break;
+        }
+      }
+      if(cek) {
+        printf("Auth success\n");
+        strcpy(cmd, "success");
+        send(new_socket, cmd, 1024, 0);
+      } else {
+          printf("Auth failed\n");
+          strcpy(cmd, "failed");
+          send(new_socket, cmd, 1024, 0);
+      }
+      fclose(fp);
+    } 
+    else if (strcmp(account, "Register") == 0 || strcmp(account, "register") == 0) {
+      FILE *fp = fopen("akun.txt", "a");
+      read = recv(new_socket, account, 1024, 0);
+      account[read] = '\0';
+      fprintf(fp, "%s", account);
+      fprintf(fp, "\n");
+      strcpy(cmd,"success");
+      fclose(fp);
+      FILE *fp1 = fopen("akun.txt", "r");
+      while (fscanf(fp1, "%s", secret) != EOF) {
+        printf("%s\n", secret);
+      }
+      fclose(fp1);
+      send(new_socket, cmd, 1024, 0);
+    }
+  }
+}
 
 int main(int argc, char const *argv[]){
-  FILE *fp;
   int server_fd, new_socket, valread;
   struct sockaddr_in address;
   int opt = 1, stock=1;
-  int addrlen = sizeof(address);
-  char buffer[100] = {0};
-  const char *cmd1 = "login";
-  const char *cmd11 = "Login";
-  const char *cmd2 = "regiser";
-  const char *cmd22 = "Register";
-  const char *cmd0 = "exit";
-  char message[100]={0};
-  char usr[100]={0};
-  char pass[100]={0};
 
-  pUser=(struct user *)malloc(sizeof(struct user));
-    
   if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) <= 0) {
     perror("Could not create socket\n");
-    exit(EXIT_FAILURE);
-  }
-
-  if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
-    perror("setsockopt\n");
     exit(EXIT_FAILURE);
   }
 
@@ -54,65 +95,14 @@ int main(int argc, char const *argv[]){
     exit(EXIT_FAILURE);
   }
 
+  printf("Waiting for making connection...\n"); 
   while (1)
   {
-    printf("Waiting for making connection...\n"); 
-    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen))<0) {
-      perror("accept error");
-      exit(EXIT_FAILURE);
-    }
-    else printf("Connection accepted\n");
-
-    valread = read(new_socket, buffer, 100);
-    recv(new_socket, buffer, 100, 0);
-    recv(new_socket, usr, 100, 0);
-    recv(new_socket, pass, 100, 0);
-    printf("%s\n", buffer);
-    printf("%s\n", usr);
-    printf("%s\n", pass);
-
-    if (strcmp(buffer,cmd1) == 0 || strcmp(buffer,cmd11) == 0) {
-      if ((fp=fopen("akun.txt", "r+")) == NULL) {
-        if ((fp=fopen("akun.txt", "w+")) == NULL) {
-          printf ("Could not open file\n");
-          exit ( 1);
-        }
-      }
-      while ( fread (pUser, sizeof(struct user), 1, fp) == 1) {
-        if( strcmp ( pUser->username, usr) == 0) {
-          if( strcmp ( pUser->password, pass) == 0) {
-            strcpy(message,"login success\n");
-            send(new_socket, message, strlen(message), 0);
-            printf("Auth success\n");
-          } else {
-              strcpy(message,"login failed\n");
-              send(new_socket, message, strlen(message), 0);
-              printf("Auth failed\n");
-          }
-        }
-      }
-    }
-
-    else if (strcmp(buffer,cmd2) == 0 || strcmp(buffer,cmd22) == 0) {
-      if ((fp=fopen("akun.txt", "a+")) == NULL) {
-        if ((fp=fopen("akun.txt", "w+")) == NULL) {
-          printf ("Couldn't not open file\n");
-          exit ( 1);
-        }
-      }
-      fwrite (pUser->username, sizeof(struct user), 1, fp);
-      fwrite (pUser->password, sizeof(struct user), 1, fp);
-      printf("%s || ", pUser->username);
-      printf("%s\n", pUser->password);
-    }
-    else if(strcmp(buffer,cmd0) == 0) {
-      return 0;
-    }
-
-    memset(buffer, '\0', sizeof buffer);
-    memset(message, '\0', sizeof message);
-    
-    close(new_socket);
+    Player[playerCount].jlh = accept(server_fd, (struct sockaddr *)&Player[playerCount].playerAddress, &Player[playerCount].addrlen);
+    pthread_create(&thread[playerCount], NULL, process, &Player[playerCount]);
+    playerCount++;
   }
+  for(int i = 0; i < playerCount; i++)
+    pthread_join(thread[i], NULL);
   return 0;
 }
